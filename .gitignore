@@ -1,0 +1,36 @@
+# Dependencies
+frontend/node_modules/
+backend-go/vendor/
+
+# Build outputs
+frontend/dist/
+frontend/src-tauri/target/
+backend-go/server
+backend-go/server.exe
+
+# Data & logs
+backend-go/data/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+
+# Tauri
+frontend/src-tauri/gen/
+
+# Go
+*.exe
+*.dll
+*.so
+*.dylib
