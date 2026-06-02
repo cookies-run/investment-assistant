@@ -5,8 +5,11 @@ backend-go/vendor/
 # Build outputs
 frontend/dist/
 frontend/src-tauri/target/
+frontend/src-tauri/binaries/
 backend-go/server
 backend-go/server.exe
+*.dmg
+*.app
 
 # Data & logs
 backend-go/data/
