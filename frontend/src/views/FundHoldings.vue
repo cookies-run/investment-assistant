@@ -374,7 +374,7 @@ const availableFundsForGroup = computed(() => {
             v-for="(item, iIndex) in group.items"
             :key="item.id"
             class="card-wrapper"
-            :class="{ 'drag-over': dragOverItemKey === `${group.id}:${iIndex}` }"
+            :class="{ 'drag-over': dragOverItemKey === `${group.id}:${iIndex}`, 'management-mode': showManagement }"
             :draggable="showManagement"
             @dragstart="onItemDragStart(group.id, iIndex)"
             @dragover="onItemDragOver(group.id, iIndex, $event)"
@@ -648,7 +648,8 @@ const availableFundsForGroup = computed(() => {
   transition: opacity 0.2s;
 }
 
-.card-wrapper:hover .btn-remove-item {
+.card-wrapper:hover .btn-remove-item,
+.card-wrapper.management-mode .btn-remove-item {
   opacity: 1;
 }
 

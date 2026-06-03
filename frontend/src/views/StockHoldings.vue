@@ -379,7 +379,7 @@ const availableStocksForGroup = computed(() => {
             v-for="(item, iIndex) in group.items"
             :key="item.id"
             class="card-wrapper"
-            :class="{ 'drag-over': dragOverItemKey === `${group.id}:${iIndex}` }"
+            :class="{ 'drag-over': dragOverItemKey === `${group.id}:${iIndex}`, 'management-mode': showManagement }"
             :draggable="showManagement"
             @dragstart="onItemDragStart(group.id, iIndex)"
             @dragover="onItemDragOver(group.id, iIndex, $event)"
@@ -619,7 +619,7 @@ const availableStocksForGroup = computed(() => {
 
 .stock-card-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 20px;
 }
 
@@ -657,7 +657,8 @@ const availableStocksForGroup = computed(() => {
   transition: opacity 0.2s;
 }
 
-.card-wrapper:hover .btn-remove-item {
+.card-wrapper:hover .btn-remove-item,
+.card-wrapper.management-mode .btn-remove-item {
   opacity: 1;
 }
 
@@ -701,6 +702,12 @@ const availableStocksForGroup = computed(() => {
   height: 16px;
   accent-color: #2563eb;
   cursor: pointer;
+}
+
+@media (max-width: 1200px) {
+  .stock-card-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 768px) {
