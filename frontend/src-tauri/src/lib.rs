@@ -3,6 +3,14 @@ use tauri::Manager;
 use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
 
+fn ensure_app_data_dir(app: &tauri::App) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
+    let dir = app.path().app_data_dir()?;
+    if !dir.exists() {
+        std::fs::create_dir_all(&dir)?;
+    }
+    Ok(dir)
+}
+
 #[derive(Default)]
 struct BackendPort(String);
 
@@ -38,6 +46,16 @@ pub fn run() {
             let port_str = port.to_string();
             println!("[tauri-setup] selected backend port: {}", port_str);
 
+            let app_data_dir = match ensure_app_data_dir(&app) {
+                Ok(dir) => dir,
+                Err(e) => {
+                    eprintln!("[tauri-setup] ERROR: failed to create app data dir: {}", e);
+                    return Err(format!("failed to create app data dir: {}", e).into());
+                }
+            };
+            let db_path = app_data_dir.join("stock_monitor.db");
+            println!("[tauri-setup] db path: {:?}", db_path);
+
             let sidecar_cmd = match app.shell().sidecar("stock-monitor") {
                 Ok(cmd) => cmd,
                 Err(e) => {
@@ -48,7 +66,8 @@ pub fn run() {
 
             let sidecar_cmd = sidecar_cmd
                 .env("PORT", &port_str)
-                .env("TAURI_SIDEARCAR", "1");
+                .env("DB_PATH", db_path.to_string_lossy().to_string())
+                .env("TAURI_SIDECAR", "1");
 
             let (mut rx, child) = match sidecar_cmd.spawn() {
                 Ok((r, c)) => (r, c),

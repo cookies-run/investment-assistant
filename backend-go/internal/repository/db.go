@@ -15,12 +15,16 @@ import (
 var DB *gorm.DB
 
 func resolveDBPath() string {
-	// Allow override via environment variable
+	// Priority 1: explicit DB_PATH from Tauri sidecar
+	if env := os.Getenv("DB_PATH"); env != "" {
+		return env
+	}
+	// Priority 2: legacy DATA_DIR override
 	if env := os.Getenv("DATA_DIR"); env != "" {
 		return filepath.Join(env, "stock_monitor.db")
 	}
-	// Tauri sidecar mode: use user config directory
-	if os.Getenv("TAURI_SIDEARCAR") == "1" {
+	// Priority 3: Tauri sidecar mode (auto-detect user config dir)
+	if os.Getenv("TAURI_SIDECAR") == "1" || os.Getenv("TAURI_SIDEARCAR") == "1" {
 		configDir, err := os.UserConfigDir()
 		if err == nil {
 			dir := filepath.Join(configDir, "投资助手")
