@@ -19,7 +19,8 @@ func NewMarketHandler(groupRepo *repository.MarketIndexGroupRepo, dailyCloseRepo
 }
 
 func (h *MarketHandler) Get(c *gin.Context) {
-	groups, err := h.groupRepo.GetAllWithItems()
+	userID := getUserID(c)
+	groups, err := h.groupRepo.GetAllWithItems(userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

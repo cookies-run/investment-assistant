@@ -20,7 +20,8 @@ func NewMarketDashboardHandler(groupRepo *repository.MarketIndexGroupRepo, itemR
 }
 
 func (h *MarketDashboardHandler) ListGroups(c *gin.Context) {
-	groups, err := h.groupRepo.GetAllWithItems()
+	userID := getUserID(c)
+	groups, err := h.groupRepo.GetAllWithItems(userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -36,7 +37,7 @@ func (h *MarketDashboardHandler) CreateGroup(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	group := &model.MarketIndexGroup{Name: req.Name}
+	group := &model.MarketIndexGroup{Name: req.Name, UserID: getUserID(c)}
 	if err := h.groupRepo.Create(group); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -45,6 +46,7 @@ func (h *MarketDashboardHandler) CreateGroup(c *gin.Context) {
 }
 
 func (h *MarketDashboardHandler) UpdateGroup(c *gin.Context) {
+	userID := getUserID(c)
 	id64, err := strconv.ParseInt(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
@@ -59,11 +61,11 @@ func (h *MarketDashboardHandler) UpdateGroup(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := h.groupRepo.Update(id, map[string]interface{}{"name": req.Name}); err != nil {
+	if err := h.groupRepo.Update(userID, id, map[string]interface{}{"name": req.Name}); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	group, err := h.groupRepo.GetByID(id)
+	group, err := h.groupRepo.GetByID(userID, id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "group not found"})
 		return
@@ -72,12 +74,13 @@ func (h *MarketDashboardHandler) UpdateGroup(c *gin.Context) {
 }
 
 func (h *MarketDashboardHandler) DeleteGroup(c *gin.Context) {
+	userID := getUserID(c)
 	id64, err := strconv.ParseInt(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	if err := h.groupRepo.Delete(uint(id64)); err != nil {
+	if err := h.groupRepo.Delete(userID, uint(id64)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -85,6 +88,7 @@ func (h *MarketDashboardHandler) DeleteGroup(c *gin.Context) {
 }
 
 func (h *MarketDashboardHandler) ReorderGroups(c *gin.Context) {
+	userID := getUserID(c)
 	var req struct {
 		IDs []uint `json:"ids" binding:"required"`
 	}
@@ -92,7 +96,7 @@ func (h *MarketDashboardHandler) ReorderGroups(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := h.groupRepo.Reorder(req.IDs); err != nil {
+	if err := h.groupRepo.Reorder(userID, req.IDs); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -111,6 +115,7 @@ func (h *MarketDashboardHandler) CreateItem(c *gin.Context) {
 		return
 	}
 	item := &model.MarketIndexItem{
+		UserID:     getUserID(c),
 		GroupID:    req.GroupID,
 		Symbol:     req.Symbol,
 		Name:       req.Name,
@@ -124,12 +129,13 @@ func (h *MarketDashboardHandler) CreateItem(c *gin.Context) {
 }
 
 func (h *MarketDashboardHandler) DeleteItem(c *gin.Context) {
+	userID := getUserID(c)
 	id64, err := strconv.ParseInt(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	if err := h.itemRepo.Delete(uint(id64)); err != nil {
+	if err := h.itemRepo.Delete(userID, uint(id64)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -137,6 +143,7 @@ func (h *MarketDashboardHandler) DeleteItem(c *gin.Context) {
 }
 
 func (h *MarketDashboardHandler) ReorderItems(c *gin.Context) {
+	userID := getUserID(c)
 	var req struct {
 		IDs []uint `json:"ids" binding:"required"`
 	}
@@ -144,7 +151,7 @@ func (h *MarketDashboardHandler) ReorderItems(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := h.itemRepo.Reorder(req.IDs); err != nil {
+	if err := h.itemRepo.Reorder(userID, req.IDs); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

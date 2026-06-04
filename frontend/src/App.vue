@@ -2,14 +2,25 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import NotificationSettings from './components/NotificationSettings.vue'
+import LoginDialog from './components/LoginDialog.vue'
+import { useAuthStore } from './stores/auth'
 import { initClientBaseURL } from './api/client'
 
 const route = useRoute()
 const router = useRouter()
 const settingsRef = ref<InstanceType<typeof NotificationSettings> | null>(null)
+const loginRef = ref<InstanceType<typeof LoginDialog> | null>(null)
+const auth = useAuthStore()
 
-onMounted(() => {
+onMounted(async () => {
   initClientBaseURL()
+  const token = localStorage.getItem('auth_token')
+  if (token) {
+    await auth.fetchUser()
+  }
+  if (!auth.isLoggedIn) {
+    loginRef.value?.open()
+  }
 })
 
 const tabs = [
@@ -25,6 +36,11 @@ function goTab(path: string) {
 
 function openSettings() {
   settingsRef.value?.open()
+}
+
+function handleLogout() {
+  auth.logout()
+  loginRef.value?.open()
 }
 </script>
 
@@ -49,6 +65,12 @@ function openSettings() {
         </el-menu-item>
       </el-menu>
       <div class="header-actions">
+        <template v-if="auth.isLoggedIn">
+          <span class="user-name">{{ auth.user?.nickname }}</span>
+          <el-button circle text @click="handleLogout" title="退出">
+            <el-icon :size="18"><SwitchButton /></el-icon>
+          </el-button>
+        </template>
         <el-button circle text @click="openSettings" title="通知设置">
           <el-icon :size="18"><Setting /></el-icon>
         </el-button>
@@ -56,6 +78,7 @@ function openSettings() {
     </el-header>
 
     <NotificationSettings ref="settingsRef" />
+    <LoginDialog ref="loginRef" />
 
     <el-main class="app-main">
       <router-view />
@@ -129,6 +152,12 @@ function openSettings() {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.user-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
 }
 
 .app-main {

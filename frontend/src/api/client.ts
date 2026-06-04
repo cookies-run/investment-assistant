@@ -24,6 +24,12 @@ client.interceptors.request.use(async (config) => {
   if (!config.baseURL || config.baseURL === '/api') {
     config.baseURL = client.defaults.baseURL
   }
+  // Attach JWT token if available
+  const token = localStorage.getItem('auth_token')
+  if (token) {
+    config.headers = config.headers || {}
+    config.headers.Authorization = `Bearer ${token}`
+  }
   return config
 })
 

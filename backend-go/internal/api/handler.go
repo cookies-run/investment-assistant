@@ -24,7 +24,9 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 	stockGroupItemRepo := repository.NewStockGroupItemRepo(db)
 	fundGroupRepo := repository.NewFundGroupRepo(db)
 	fundGroupItemRepo := repository.NewFundGroupItemRepo(db)
+	userRepo := repository.NewUserRepo(db)
 
+	authHandler := NewAuthHandler(userRepo)
 	stockService := service.NewStockService(stockRepo, dailyRecordRepo)
 	fundService := service.NewFundService(fundRepo)
 	statsService := service.NewStatsService(stockRepo, fundRepo)
@@ -46,14 +48,24 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 	stockGroupHandler := NewStockGroupHandler(stockGroupRepo, stockGroupItemRepo)
 	fundGroupHandler := NewFundGroupHandler(fundGroupRepo, fundGroupItemRepo)
 
+	// Auth routes (no middleware)
 	api := r.Group("/api")
 	{
-		api.GET("/stocks", stockHandler.List)
-		api.POST("/stocks", stockHandler.Create)
-		api.PUT("/stocks/:code", stockHandler.Update)
-		api.DELETE("/stocks/:code", stockHandler.Delete)
-		api.GET("/stocks/detail/:code", stockHandler.Detail)
-		api.GET("/stocks/search", func(c *gin.Context) {
+		api.POST("/auth/quick-register", authHandler.QuickRegister)
+		api.POST("/auth/wechat", authHandler.WechatLogin)
+	}
+
+	// Protected routes
+	authorized := r.Group("/api")
+	authorized.Use(AuthMiddleware())
+	{
+		authorized.GET("/auth/me", authHandler.Me)
+		authorized.GET("/stocks", stockHandler.List)
+		authorized.POST("/stocks", stockHandler.Create)
+		authorized.PUT("/stocks/:code", stockHandler.Update)
+		authorized.DELETE("/stocks/:code", stockHandler.Delete)
+		authorized.GET("/stocks/detail/:code", stockHandler.Detail)
+		authorized.GET("/stocks/search", func(c *gin.Context) {
 			q := c.Query("q")
 			results, err := datasource.SearchStocks(q)
 			if err != nil {
@@ -63,12 +75,12 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 			c.JSON(http.StatusOK, results)
 		})
 
-		api.GET("/funds", fundHandler.List)
-		api.POST("/funds", fundHandler.Create)
-		api.PUT("/funds/:code", fundHandler.Update)
-		api.DELETE("/funds/:code", fundHandler.Delete)
-		api.GET("/funds/:code/daily-records", fundHandler.DailyRecords)
-		api.GET("/funds/search", func(c *gin.Context) {
+		authorized.GET("/funds", fundHandler.List)
+		authorized.POST("/funds", fundHandler.Create)
+		authorized.PUT("/funds/:code", fundHandler.Update)
+		authorized.DELETE("/funds/:code", fundHandler.Delete)
+		authorized.GET("/funds/:code/daily-records", fundHandler.DailyRecords)
+		authorized.GET("/funds/search", func(c *gin.Context) {
 			q := c.Query("q")
 			results, err := datasource.SearchFunds(q)
 			if err != nil {
@@ -78,56 +90,56 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 			c.JSON(http.StatusOK, results)
 		})
 
-		api.GET("/fund-holdings/:code", holdingHandler.Get)
-		api.GET("/fund-holdings/detail/:code", holdingHandler.Detail)
-		api.POST("/fund-holdings/sync/:code", holdingHandler.Sync)
+		authorized.GET("/fund-holdings/:code", holdingHandler.Get)
+		authorized.GET("/fund-holdings/detail/:code", holdingHandler.Detail)
+		authorized.POST("/fund-holdings/sync/:code", holdingHandler.Sync)
 
-		api.GET("/funds/:code/lots", fundLotHandler.List)
-		api.POST("/funds/:code/lots", fundLotHandler.Create)
-		api.DELETE("/funds/:code/lots/:id", fundLotHandler.Delete)
+		authorized.GET("/funds/:code/lots", fundLotHandler.List)
+		authorized.POST("/funds/:code/lots", fundLotHandler.Create)
+		authorized.DELETE("/funds/:code/lots/:id", fundLotHandler.Delete)
 
-		api.GET("/alerts", alertHandler.List)
-		api.GET("/daily-records", dailyRecordHandler.List)
-		api.GET("/stats", statsHandler.Get)
-		api.GET("/market-dashboard", marketHandler.Get)
+		authorized.GET("/alerts", alertHandler.List)
+		authorized.GET("/daily-records", dailyRecordHandler.List)
+		authorized.GET("/stats", statsHandler.Get)
+		authorized.GET("/market-dashboard", marketHandler.Get)
 
 		// Market dashboard group/item management
-		api.GET("/market-groups", marketDashboardHandler.ListGroups)
-		api.POST("/market-groups", marketDashboardHandler.CreateGroup)
-		api.PUT("/market-groups/:id", marketDashboardHandler.UpdateGroup)
-		api.DELETE("/market-groups/:id", marketDashboardHandler.DeleteGroup)
-		api.POST("/market-groups/reorder", marketDashboardHandler.ReorderGroups)
+		authorized.GET("/market-groups", marketDashboardHandler.ListGroups)
+		authorized.POST("/market-groups", marketDashboardHandler.CreateGroup)
+		authorized.PUT("/market-groups/:id", marketDashboardHandler.UpdateGroup)
+		authorized.DELETE("/market-groups/:id", marketDashboardHandler.DeleteGroup)
+		authorized.POST("/market-groups/reorder", marketDashboardHandler.ReorderGroups)
 
-		api.POST("/market-items", marketDashboardHandler.CreateItem)
-		api.DELETE("/market-items/:id", marketDashboardHandler.DeleteItem)
-		api.POST("/market-items/reorder", marketDashboardHandler.ReorderItems)
+		authorized.POST("/market-items", marketDashboardHandler.CreateItem)
+		authorized.DELETE("/market-items/:id", marketDashboardHandler.DeleteItem)
+		authorized.POST("/market-items/reorder", marketDashboardHandler.ReorderItems)
 
-		api.GET("/available-indices", marketDashboardHandler.ListAvailableIndices)
+		authorized.GET("/available-indices", marketDashboardHandler.ListAvailableIndices)
 
 		// Stock group management
-		api.GET("/stock-groups", stockGroupHandler.ListGroups)
-		api.POST("/stock-groups", stockGroupHandler.CreateGroup)
-		api.PUT("/stock-groups/:id", stockGroupHandler.UpdateGroup)
-		api.DELETE("/stock-groups/:id", stockGroupHandler.DeleteGroup)
-		api.POST("/stock-groups/reorder", stockGroupHandler.ReorderGroups)
+		authorized.GET("/stock-groups", stockGroupHandler.ListGroups)
+		authorized.POST("/stock-groups", stockGroupHandler.CreateGroup)
+		authorized.PUT("/stock-groups/:id", stockGroupHandler.UpdateGroup)
+		authorized.DELETE("/stock-groups/:id", stockGroupHandler.DeleteGroup)
+		authorized.POST("/stock-groups/reorder", stockGroupHandler.ReorderGroups)
 
-		api.POST("/stock-group-items", stockGroupHandler.CreateItem)
-		api.DELETE("/stock-group-items/:id", stockGroupHandler.DeleteItem)
-		api.POST("/stock-group-items/reorder", stockGroupHandler.ReorderItems)
+		authorized.POST("/stock-group-items", stockGroupHandler.CreateItem)
+		authorized.DELETE("/stock-group-items/:id", stockGroupHandler.DeleteItem)
+		authorized.POST("/stock-group-items/reorder", stockGroupHandler.ReorderItems)
 
 		// Fund group management
-		api.GET("/fund-groups", fundGroupHandler.ListGroups)
-		api.POST("/fund-groups", fundGroupHandler.CreateGroup)
-		api.PUT("/fund-groups/:id", fundGroupHandler.UpdateGroup)
-		api.DELETE("/fund-groups/:id", fundGroupHandler.DeleteGroup)
-		api.POST("/fund-groups/reorder", fundGroupHandler.ReorderGroups)
+		authorized.GET("/fund-groups", fundGroupHandler.ListGroups)
+		authorized.POST("/fund-groups", fundGroupHandler.CreateGroup)
+		authorized.PUT("/fund-groups/:id", fundGroupHandler.UpdateGroup)
+		authorized.DELETE("/fund-groups/:id", fundGroupHandler.DeleteGroup)
+		authorized.POST("/fund-groups/reorder", fundGroupHandler.ReorderGroups)
 
-		api.POST("/fund-group-items", fundGroupHandler.CreateItem)
-		api.DELETE("/fund-group-items/:id", fundGroupHandler.DeleteItem)
-		api.POST("/fund-group-items/reorder", fundGroupHandler.ReorderItems)
+		authorized.POST("/fund-group-items", fundGroupHandler.CreateItem)
+		authorized.DELETE("/fund-group-items/:id", fundGroupHandler.DeleteItem)
+		authorized.POST("/fund-group-items/reorder", fundGroupHandler.ReorderItems)
 
 		// Notification settings
-		api.GET("/notification-config", notificationHandler.GetConfig)
-		api.POST("/notification-config", notificationHandler.SaveConfig)
+		authorized.GET("/notification-config", notificationHandler.GetConfig)
+		authorized.POST("/notification-config", notificationHandler.SaveConfig)
 	}
 }

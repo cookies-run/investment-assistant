@@ -14,17 +14,19 @@ func NewMarketIndexGroupRepo(db *gorm.DB) *MarketIndexGroupRepo {
 	return &MarketIndexGroupRepo{db: db}
 }
 
-func (r *MarketIndexGroupRepo) GetAllWithItems() ([]model.MarketIndexGroup, error) {
+func (r *MarketIndexGroupRepo) GetAllWithItems(userID uint) ([]model.MarketIndexGroup, error) {
 	var groups []model.MarketIndexGroup
-	err := r.db.Preload("Items", func(db *gorm.DB) *gorm.DB {
-		return db.Order("sort_order ASC, id ASC")
+	err := r.db.Where("user_id = ?", userID).Preload("Items", func(db *gorm.DB) *gorm.DB {
+		return db.Where("user_id = ?", userID).Order("sort_order ASC, id ASC")
 	}).Order("sort_order ASC, id ASC").Find(&groups).Error
 	return groups, err
 }
 
-func (r *MarketIndexGroupRepo) GetByID(id uint) (*model.MarketIndexGroup, error) {
+func (r *MarketIndexGroupRepo) GetByID(userID, id uint) (*model.MarketIndexGroup, error) {
 	var group model.MarketIndexGroup
-	err := r.db.Preload("Items").First(&group, id).Error
+	err := r.db.Where("user_id = ?", userID).Preload("Items", func(db *gorm.DB) *gorm.DB {
+		return db.Where("user_id = ?", userID)
+	}).First(&group, id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -35,18 +37,18 @@ func (r *MarketIndexGroupRepo) Create(group *model.MarketIndexGroup) error {
 	return r.db.Create(group).Error
 }
 
-func (r *MarketIndexGroupRepo) Update(id uint, updates map[string]interface{}) error {
-	return r.db.Model(&model.MarketIndexGroup{}).Where("id = ?", id).Updates(updates).Error
+func (r *MarketIndexGroupRepo) Update(userID, id uint, updates map[string]interface{}) error {
+	return r.db.Model(&model.MarketIndexGroup{}).Where("id = ? AND user_id = ?", id, userID).Updates(updates).Error
 }
 
-func (r *MarketIndexGroupRepo) Delete(id uint) error {
-	return r.db.Delete(&model.MarketIndexGroup{}, id).Error
+func (r *MarketIndexGroupRepo) Delete(userID, id uint) error {
+	return r.db.Where("id = ? AND user_id = ?", id, userID).Delete(&model.MarketIndexGroup{}).Error
 }
 
-func (r *MarketIndexGroupRepo) Reorder(ids []uint) error {
+func (r *MarketIndexGroupRepo) Reorder(userID uint, ids []uint) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
-			if err := tx.Model(&model.MarketIndexGroup{}).Where("id = ?", id).Update("sort_order", i).Error; err != nil {
+			if err := tx.Model(&model.MarketIndexGroup{}).Where("id = ? AND user_id = ?", id, userID).Update("sort_order", i).Error; err != nil {
 				return err
 			}
 		}
@@ -66,14 +68,14 @@ func (r *MarketIndexItemRepo) Create(item *model.MarketIndexItem) error {
 	return r.db.Create(item).Error
 }
 
-func (r *MarketIndexItemRepo) Delete(id uint) error {
-	return r.db.Delete(&model.MarketIndexItem{}, id).Error
+func (r *MarketIndexItemRepo) Delete(userID, id uint) error {
+	return r.db.Where("id = ? AND user_id = ?", id, userID).Delete(&model.MarketIndexItem{}).Error
 }
 
-func (r *MarketIndexItemRepo) Reorder(ids []uint) error {
+func (r *MarketIndexItemRepo) Reorder(userID uint, ids []uint) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
-			if err := tx.Model(&model.MarketIndexItem{}).Where("id = ?", id).Update("sort_order", i).Error; err != nil {
+			if err := tx.Model(&model.MarketIndexItem{}).Where("id = ? AND user_id = ?", id, userID).Update("sort_order", i).Error; err != nil {
 				return err
 			}
 		}

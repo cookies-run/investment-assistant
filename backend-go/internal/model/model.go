@@ -32,6 +32,7 @@ const (
 
 type Stock struct {
 	StockCode            string          `gorm:"primaryKey;size:10;index" json:"stock_code"`
+	UserID               uint            `gorm:"not null;default:0;index:idx_stock_user" json:"user_id"`
 	StockName            string          `gorm:"not null;size:50" json:"stock_name"`
 	BuyPrice             decimal.Decimal `gorm:"not null;type:decimal(10,3);default:0" json:"buy_price"`
 	HoldQuantity         decimal.Decimal `gorm:"not null;type:decimal(15,4);default:0" json:"hold_quantity"`
@@ -51,6 +52,7 @@ type Stock struct {
 // CapitalScalePreset 为资金规模预设（SMALL/MEDIUM/LARGE），前置决定阈值联动与均线过滤开关。
 type Fund struct {
 	FundCode             string          `gorm:"primaryKey;size:10;index" json:"fund_code"`
+	UserID               uint            `gorm:"not null;default:0;index:idx_fund_user" json:"user_id"`
 	FundName             string          `gorm:"not null;size:100" json:"fund_name"`
 	HoldQuantity         decimal.Decimal `gorm:"not null;type:decimal(15,4);default:0" json:"hold_quantity"`
 	HoldCost             decimal.Decimal `gorm:"not null;type:decimal(10,3);default:0" json:"hold_cost"`
@@ -116,16 +118,18 @@ type AlertRecord struct {
 }
 
 type MarketIndexGroup struct {
-	ID         uint      `gorm:"primaryKey;autoIncrement" json:"id"`
-	Name       string    `gorm:"not null;size:50" json:"name"`
-	SortOrder  int       `gorm:"not null;default:0" json:"sort_order"`
-	CreatedAt  time.Time `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt  time.Time `gorm:"autoUpdateTime" json:"updated_at"`
-	Items      []MarketIndexItem `gorm:"foreignKey:GroupID;references:ID;constraint:OnDelete:CASCADE;" json:"items"`
+	ID        uint              `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID    uint              `gorm:"not null;default:0;index:idx_mig_user" json:"user_id"`
+	Name      string            `gorm:"not null;size:50" json:"name"`
+	SortOrder int               `gorm:"not null;default:0" json:"sort_order"`
+	CreatedAt time.Time         `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt time.Time         `gorm:"autoUpdateTime" json:"updated_at"`
+	Items     []MarketIndexItem `gorm:"foreignKey:GroupID;references:ID;constraint:OnDelete:CASCADE;" json:"items"`
 }
 
 type MarketIndexItem struct {
 	ID         uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID     uint      `gorm:"not null;default:0;index:idx_mii_user" json:"user_id"`
 	GroupID    uint      `gorm:"not null;index" json:"group_id"`
 	Symbol     string    `gorm:"not null;size:30" json:"symbol"`
 	Name       string    `gorm:"not null;size:50" json:"name"`
@@ -137,6 +141,7 @@ type MarketIndexItem struct {
 
 type StockGroup struct {
 	ID        uint             `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID    uint             `gorm:"not null;default:0;index:idx_sg_user" json:"user_id"`
 	Name      string           `gorm:"not null;size:50" json:"name"`
 	SortOrder int              `gorm:"not null;default:0" json:"sort_order"`
 	CreatedAt time.Time        `gorm:"autoCreateTime" json:"created_at"`
@@ -146,6 +151,7 @@ type StockGroup struct {
 
 type StockGroupItem struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID    uint      `gorm:"not null;default:0;index:idx_sgi_user" json:"user_id"`
 	GroupID   uint      `gorm:"not null;index" json:"group_id"`
 	StockCode string    `gorm:"not null;size:10" json:"stock_code"`
 	StockName string    `gorm:"not null;size:50" json:"stock_name"`
@@ -156,6 +162,7 @@ type StockGroupItem struct {
 
 type FundGroup struct {
 	ID        uint            `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID    uint            `gorm:"not null;default:0;index:idx_fg_user" json:"user_id"`
 	Name      string          `gorm:"not null;size:50" json:"name"`
 	SortOrder int             `gorm:"not null;default:0" json:"sort_order"`
 	CreatedAt time.Time       `gorm:"autoCreateTime" json:"created_at"`
@@ -165,6 +172,7 @@ type FundGroup struct {
 
 type FundGroupItem struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID    uint      `gorm:"not null;default:0;index:idx_fgi_user" json:"user_id"`
 	GroupID   uint      `gorm:"not null;index" json:"group_id"`
 	FundCode  string    `gorm:"not null;size:10" json:"fund_code"`
 	FundName  string    `gorm:"not null;size:100" json:"fund_name"`
@@ -175,6 +183,7 @@ type FundGroupItem struct {
 
 type NotificationConfig struct {
 	ID            uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID        uint      `gorm:"not null;default:0;index:idx_nc_user" json:"user_id"`
 	FeishuWebhook string    `gorm:"size:500" json:"feishu_webhook"`
 	EnableFeishu  bool      `gorm:"not null;default:false" json:"enable_feishu"`
 	CreatedAt     time.Time `gorm:"autoCreateTime" json:"created_at"`
@@ -183,10 +192,21 @@ type NotificationConfig struct {
 
 type DailyClose struct {
 	ID         uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID     uint      `gorm:"not null;default:0;index:idx_dc_user" json:"user_id"`
 	Symbol     string    `gorm:"not null;size:30;index:idx_symbol_date,unique" json:"symbol"`
 	Date       string    `gorm:"not null;size:10;index:idx_symbol_date,unique" json:"date"`
 	ClosePrice float64   `gorm:"not null" json:"close_price"`
 	SourceType string    `gorm:"not null;size:20" json:"source_type"`
 	CreatedAt  time.Time `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt  time.Time `gorm:"autoUpdateTime" json:"updated_at"`
+}
+
+type User struct {
+	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	UnionID   string    `gorm:"size:64;uniqueIndex" json:"union_id,omitempty"`
+	OpenID    string    `gorm:"size:64;uniqueIndex" json:"open_id,omitempty"`
+	Nickname  string    `gorm:"size:50" json:"nickname"`
+	Avatar    string    `gorm:"size:255" json:"avatar"`
+	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }

@@ -46,6 +46,7 @@ func InitDB() *gorm.DB {
 	}
 
 	if err := DB.AutoMigrate(
+		&model.User{},
 		&model.Stock{},
 		&model.Fund{},
 		&model.FundHolding{},
@@ -63,6 +64,9 @@ func InitDB() *gorm.DB {
 	); err != nil {
 		logger.Log.Fatal("failed to migrate database", zap.Error(err))
 	}
+
+	// Backfill: ensure existing data belongs to a default user (user_id = 0)
+	backfillUserID(DB)
 
 	// Backfill: create default FundLot for existing funds without lots
 	backfillFundLots(DB)
@@ -121,4 +125,9 @@ func backfillFundLots(db *gorm.DB) {
 			logger.Log.Warn("failed to create default fund lot", zap.String("fund", f.FundCode), zap.Error(err))
 		}
 	}
+}
+
+func backfillUserID(db *gorm.DB) {
+	// Existing data before user system will have user_id = 0 (default)
+	// No action needed as gorm default handles it
 }
