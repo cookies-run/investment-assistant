@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import { quickRegister, getMe, type User } from '../api/auth'
+import { quickRegister, sendEmailCode, emailLogin, getMe, type User } from '../api/auth'
 
 const TOKEN_KEY = 'auth_token'
 
@@ -34,6 +34,22 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function loginByEmail(email: string, code: string) {
+    loading.value = true
+    try {
+      const data = await emailLogin(email, code)
+      setToken(data.token)
+      user.value = data.user
+      return data
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function sendCode(email: string) {
+    await sendEmailCode(email)
+  }
+
   async function fetchUser() {
     if (!token.value) return
     loading.value = true
@@ -51,5 +67,5 @@ export const useAuthStore = defineStore('auth', () => {
     clearToken()
   }
 
-  return { token, user, loading, isLoggedIn, setToken, clearToken, register, fetchUser, logout }
+  return { token, user, loading, isLoggedIn, setToken, clearToken, register, loginByEmail, sendCode, fetchUser, logout }
 })

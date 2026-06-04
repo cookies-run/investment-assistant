@@ -17,7 +17,65 @@ func NewAuthHandler(userRepo *repository.UserRepo) *AuthHandler {
 	return &AuthHandler{userRepo: userRepo}
 }
 
-// QuickRegister creates a user with just a nickname (no password)
+// SendEmailCode sends a verification code to the given email
+func (h *AuthHandler) SendEmailCode(c *gin.Context) {
+	var req struct {
+		Email string `json:"email" binding:"required,email"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	code := service.GenerateVerifyCode()
+	service.SaveVerifyCode(req.Email, code)
+	if err := service.SendVerifyEmail(req.Email, code); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "发送邮件失败: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// EmailLogin verifies the code and logs in (or creates) the user
+func (h *AuthHandler) EmailLogin(c *gin.Context) {
+	var req struct {
+		Email string `json:"email" binding:"required,email"`
+		Code  string `json:"code" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if !service.CheckVerifyCode(req.Email, req.Code) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "验证码错误或已过期"})
+		return
+	}
+
+	// Find or create user by email (stored in open_id field for now)
+	user, err := h.userRepo.GetByOpenID(req.Email)
+	if err != nil {
+		// Create new user
+		user = &model.User{
+			OpenID:   req.Email,
+			Nickname: req.Email,
+		}
+		if err := h.userRepo.Create(user); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	token, err := service.GenerateToken(user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"token": token,
+		"user":  user,
+	})
+}
+
+// QuickRegister creates a user with just a nickname (fallback for no email)
 func (h *AuthHandler) QuickRegister(c *gin.Context) {
 	var req struct {
 		Nickname string `json:"nickname" binding:"required"`
@@ -37,25 +95,8 @@ func (h *AuthHandler) QuickRegister(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"token":    token,
-		"user":     user,
-	})
-}
-
-// WechatLogin placeholder for WeChat OAuth login
-// Requires WECHAT_APPID and WECHAT_SECRET environment variables
-func (h *AuthHandler) WechatLogin(c *gin.Context) {
-	var req struct {
-		Code string `json:"code" binding:"required"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	// TODO: exchange code for openid via WeChat API
-	// For now, return an error indicating configuration is needed
-	c.JSON(http.StatusNotImplemented, gin.H{
-		"error": "WeChat login requires WECHAT_APPID and WECHAT_SECRET configuration",
+		"token": token,
+		"user":  user,
 	})
 }
 

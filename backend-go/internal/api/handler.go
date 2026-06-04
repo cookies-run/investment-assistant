@@ -52,7 +52,8 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 	api := r.Group("/api")
 	{
 		api.POST("/auth/quick-register", authHandler.QuickRegister)
-		api.POST("/auth/wechat", authHandler.WechatLogin)
+		api.POST("/auth/email/send", authHandler.SendEmailCode)
+		api.POST("/auth/email/login", authHandler.EmailLogin)
 	}
 
 	// Protected routes
