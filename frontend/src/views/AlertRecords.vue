@@ -55,6 +55,11 @@ onMounted(fetchData)
             <span class="code-text">{{ row.target_code }}</span>
           </template>
         </el-table-column>
+        <el-table-column prop="target_name" label="标的名称" min-width="140">
+          <template #default="{ row }">
+            <span class="name-text">{{ row.target_name }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="target_type" label="类型" width="90">
           <template #default="{ row }">
             <el-tag size="small" :type="row.target_type === 'stock' ? 'primary' : 'warning'" effect="light">
@@ -122,6 +127,11 @@ onMounted(fetchData)
   font-family: 'SF Mono', monospace;
   font-weight: 600;
   color: #374151;
+}
+
+.name-text {
+  font-weight: 600;
+  color: #111827;
 }
 
 .threshold-text {

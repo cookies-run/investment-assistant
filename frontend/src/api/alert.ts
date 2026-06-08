@@ -3,6 +3,7 @@ import client from './client'
 export interface AlertRecord {
   id: number
   target_code: string
+  target_name: string
   target_type: string
   alert_type: string
   trigger_value: number

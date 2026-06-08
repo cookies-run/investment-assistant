@@ -11,13 +11,16 @@ import (
 
 func CheckSingleDayRule(repo *repository.AlertRepo, targetCode string, targetType model.TargetType, changePercent decimal.Decimal, config interface{}) *model.AlertRecord {
 	var dailyProfitLine, dailyLossLine decimal.Decimal
+	var targetName string
 	switch c := config.(type) {
 	case *model.Stock:
 		dailyProfitLine = c.DailyProfitLine
 		dailyLossLine = c.DailyLossLine
+		targetName = c.StockName
 	case *model.Fund:
 		dailyProfitLine = c.DailyProfitLine
 		dailyLossLine = c.DailyLossLine
+		targetName = c.FundName
 	default:
 		return nil
 	}
@@ -46,6 +49,7 @@ func CheckSingleDayRule(repo *repository.AlertRepo, targetCode string, targetTyp
 
 	return &model.AlertRecord{
 		TargetCode:     targetCode,
+		TargetName:     targetName,
 		TargetType:     targetType,
 		AlertType:      alertType,
 		TriggerValue:   triggerValue,
@@ -56,15 +60,18 @@ func CheckSingleDayRule(repo *repository.AlertRepo, targetCode string, targetTyp
 func CheckCumulativeRule(repo *repository.AlertRepo, recordRepo *repository.DailyRecordRepo, targetCode string, targetType model.TargetType, currentChange decimal.Decimal, config interface{}) *model.AlertRecord {
 	var cumulativeDays int
 	var cumulativeProfitLine, cumulativeLossLine decimal.Decimal
+	var targetName string
 	switch c := config.(type) {
 	case *model.Stock:
 		cumulativeDays = c.CumulativeDays
 		cumulativeProfitLine = c.CumulativeProfitLine
 		cumulativeLossLine = c.CumulativeLossLine
+		targetName = c.StockName
 	case *model.Fund:
 		cumulativeDays = c.CumulativeDays
 		cumulativeProfitLine = c.CumulativeProfitLine
 		cumulativeLossLine = c.CumulativeLossLine
+		targetName = c.FundName
 	default:
 		return nil
 	}
@@ -119,6 +126,7 @@ func CheckCumulativeRule(repo *repository.AlertRepo, recordRepo *repository.Dail
 
 	return &model.AlertRecord{
 		TargetCode:     targetCode,
+		TargetName:     targetName,
 		TargetType:     targetType,
 		AlertType:      alertType,
 		TriggerValue:   triggerValue,
