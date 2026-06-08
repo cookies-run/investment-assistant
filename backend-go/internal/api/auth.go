@@ -26,6 +26,11 @@ func (h *AuthHandler) SendEmailCode(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	clientIP := c.ClientIP()
+	if err := service.CheckIPSendLimit(clientIP); err != nil {
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": err.Error()})
+		return
+	}
 	if err := service.CheckEmailSendLimit(req.Email); err != nil {
 		c.JSON(http.StatusTooManyRequests, gin.H{"error": err.Error()})
 		return
@@ -37,6 +42,7 @@ func (h *AuthHandler) SendEmailCode(c *gin.Context) {
 	}
 	service.SaveVerifyCode(req.Email, code)
 	service.RecordEmailSent(req.Email)
+	service.RecordIPSent(clientIP)
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 

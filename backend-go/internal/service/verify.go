@@ -72,15 +72,17 @@ func cleanupExpiredCodes() {
 	}
 }
 
-type emailSendLimit struct {
+type sendLimit struct {
 	LastSent  time.Time
 	DayCount  int
 	DayString string
 }
 
 var (
-	emailLimits  = make(map[string]*emailSendLimit)
+	emailLimits  = make(map[string]*sendLimit)
 	emailLimitMu sync.RWMutex
+	ipLimits     = make(map[string]*sendLimit)
+	ipLimitMu    sync.RWMutex
 )
 
 func CheckEmailSendLimit(email string) error {
@@ -116,7 +118,47 @@ func RecordEmailSent(email string) {
 
 	limit, ok := emailLimits[email]
 	if !ok || limit.DayString != today {
-		emailLimits[email] = &emailSendLimit{
+		emailLimits[email] = &sendLimit{
+			LastSent:  now,
+			DayCount:  1,
+			DayString: today,
+		}
+		return
+	}
+
+	limit.LastSent = now
+	limit.DayCount++
+}
+
+func CheckIPSendLimit(ip string) error {
+	ipLimitMu.Lock()
+	defer ipLimitMu.Unlock()
+
+	now := time.Now()
+	today := now.Format("2006-01-02")
+
+	limit, ok := ipLimits[ip]
+	if !ok {
+		return nil
+	}
+
+	if limit.DayString == today && limit.DayCount >= 2 {
+		return fmt.Errorf("该IP今日发送次数已达上限，请明天再试")
+	}
+
+	return nil
+}
+
+func RecordIPSent(ip string) {
+	ipLimitMu.Lock()
+	defer ipLimitMu.Unlock()
+
+	now := time.Now()
+	today := now.Format("2006-01-02")
+
+	limit, ok := ipLimits[ip]
+	if !ok || limit.DayString != today {
+		ipLimits[ip] = &sendLimit{
 			LastSent:  now,
 			DayCount:  1,
 			DayString: today,
