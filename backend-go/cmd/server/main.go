@@ -52,10 +52,10 @@ func loadEncryptedEnv() {
 }
 
 func main() {
-	loadEncryptedEnv()
-
 	logger.Init()
 	defer logger.Sync()
+
+	loadEncryptedEnv()
 
 	db := repository.InitDB()
 

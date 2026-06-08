@@ -108,7 +108,7 @@ type DailyRecord struct {
 type AlertRecord struct {
 	ID             uint             `gorm:"primaryKey;autoIncrement" json:"id"`
 	TargetCode     string           `gorm:"not null;size:10;index" json:"target_code"`
-	TargetName     string           `gorm:"not null;size:100" json:"target_name"`
+	TargetName     string           `gorm:"not null;size:100;default:''" json:"target_name"`
 	TargetType     TargetType       `gorm:"not null;size:10" json:"target_type"`
 	AlertType      AlertType        `gorm:"not null;size:30" json:"alert_type"`
 	TriggerValue   decimal.Decimal  `gorm:"not null;type:decimal(6,3)" json:"trigger_value"`

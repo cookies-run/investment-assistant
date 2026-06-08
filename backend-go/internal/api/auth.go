@@ -26,12 +26,17 @@ func (h *AuthHandler) SendEmailCode(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	if err := service.CheckEmailSendLimit(req.Email); err != nil {
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": err.Error()})
+		return
+	}
 	code := service.GenerateVerifyCode()
-	service.SaveVerifyCode(req.Email, code)
 	if err := service.SendVerifyEmail(req.Email, code); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "发送邮件失败: " + err.Error()})
 		return
 	}
+	service.SaveVerifyCode(req.Email, code)
+	service.RecordEmailSent(req.Email)
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 

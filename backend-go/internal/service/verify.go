@@ -72,6 +72,62 @@ func cleanupExpiredCodes() {
 	}
 }
 
+type emailSendLimit struct {
+	LastSent  time.Time
+	DayCount  int
+	DayString string
+}
+
+var (
+	emailLimits  = make(map[string]*emailSendLimit)
+	emailLimitMu sync.RWMutex
+)
+
+func CheckEmailSendLimit(email string) error {
+	emailLimitMu.Lock()
+	defer emailLimitMu.Unlock()
+
+	now := time.Now()
+	today := now.Format("2006-01-02")
+
+	limit, ok := emailLimits[email]
+	if !ok {
+		return nil
+	}
+
+	if now.Sub(limit.LastSent) < 5*time.Minute {
+		remain := int(300 - now.Sub(limit.LastSent).Seconds())
+		return fmt.Errorf("发送过于频繁，请%d秒后再试", remain)
+	}
+
+	if limit.DayString == today && limit.DayCount >= 2 {
+		return fmt.Errorf("今日发送次数已达上限，请明天再试")
+	}
+
+	return nil
+}
+
+func RecordEmailSent(email string) {
+	emailLimitMu.Lock()
+	defer emailLimitMu.Unlock()
+
+	now := time.Now()
+	today := now.Format("2006-01-02")
+
+	limit, ok := emailLimits[email]
+	if !ok || limit.DayString != today {
+		emailLimits[email] = &emailSendLimit{
+			LastSent:  now,
+			DayCount:  1,
+			DayString: today,
+		}
+		return
+	}
+
+	limit.LastSent = now
+	limit.DayCount++
+}
+
 func init() {
 	go cleanupExpiredCodes()
 }
@@ -94,7 +150,8 @@ func SendVerifyEmail(toEmail, code string) error {
 
 	subject := "投资助手 - 登录验证码"
 	body := fmt.Sprintf("您的验证码是：%s\n5分钟内有效，请勿泄露给他人。", code)
-	msg := []byte("To: " + toEmail + "\r\n" +
+	msg := []byte("From: " + user + "\r\n" +
+		"To: " + toEmail + "\r\n" +
 		"Subject: " + subject + "\r\n" +
 		"Content-Type: text/plain; charset=UTF-8\r\n" +
 		"\r\n" +
@@ -103,39 +160,63 @@ func SendVerifyEmail(toEmail, code string) error {
 	addr := host + ":" + port
 	auth := smtp.PlainAuth("", user, pass, host)
 
+	logger.Log.Info("sending verify email",
+		zap.String("from", user),
+		zap.String("to", toEmail),
+		zap.String("host", host),
+		zap.String("port", port),
+	)
+
 	// 465 uses SSL/TLS; 587 uses STARTTLS; 25 uses plain text
 	if portNum == 465 {
 		conn, err := tls.Dial("tcp", addr, &tls.Config{ServerName: host, InsecureSkipVerify: false})
 		if err != nil {
+			logger.Log.Error("SMTP TLS dial failed", zap.Error(err))
 			return err
 		}
 		defer conn.Close()
 
 		client, err := smtp.NewClient(conn, host)
 		if err != nil {
+			logger.Log.Error("SMTP new client failed", zap.Error(err))
 			return err
 		}
 		defer client.Close()
 
 		if err := client.Auth(auth); err != nil {
+			logger.Log.Error("SMTP auth failed", zap.Error(err))
 			return err
 		}
 		if err := client.Mail(user); err != nil {
+			logger.Log.Error("SMTP mail from failed", zap.Error(err))
 			return err
 		}
 		if err := client.Rcpt(toEmail); err != nil {
+			logger.Log.Error("SMTP rcpt to failed", zap.Error(err))
 			return err
 		}
 		w, err := client.Data()
 		if err != nil {
+			logger.Log.Error("SMTP data failed", zap.Error(err))
 			return err
 		}
 		_, err = w.Write(msg)
 		if err != nil {
+			logger.Log.Error("SMTP write failed", zap.Error(err))
 			return err
 		}
-		return w.Close()
+		if err := w.Close(); err != nil {
+			logger.Log.Error("SMTP close failed", zap.Error(err))
+			return err
+		}
+		logger.Log.Info("SMTP email sent successfully", zap.String("to", toEmail))
+		return nil
 	}
 
-	return smtp.SendMail(addr, auth, user, []string{toEmail}, msg)
+	if err := smtp.SendMail(addr, auth, user, []string{toEmail}, msg); err != nil {
+		logger.Log.Error("SMTP SendMail failed", zap.Error(err))
+		return err
+	}
+	logger.Log.Info("SMTP email sent successfully", zap.String("to", toEmail))
+	return nil
 }
