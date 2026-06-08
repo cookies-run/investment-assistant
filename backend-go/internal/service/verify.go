@@ -2,11 +2,13 @@ package service
 
 import (
 	"crypto/rand"
+	"crypto/tls"
 	"fmt"
 	"math/big"
 	"net/smtp"
 	"os"
 	"stock-monitor/pkg/logger"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -88,6 +90,8 @@ func SendVerifyEmail(toEmail, code string) error {
 		return nil
 	}
 
+	portNum, _ := strconv.Atoi(port)
+
 	subject := "投资助手 - 登录验证码"
 	body := fmt.Sprintf("您的验证码是：%s\n5分钟内有效，请勿泄露给他人。", code)
 	msg := []byte("To: " + toEmail + "\r\n" +
@@ -98,5 +102,40 @@ func SendVerifyEmail(toEmail, code string) error {
 
 	addr := host + ":" + port
 	auth := smtp.PlainAuth("", user, pass, host)
+
+	// 465 uses SSL/TLS; 587 uses STARTTLS; 25 uses plain text
+	if portNum == 465 {
+		conn, err := tls.Dial("tcp", addr, &tls.Config{ServerName: host, InsecureSkipVerify: false})
+		if err != nil {
+			return err
+		}
+		defer conn.Close()
+
+		client, err := smtp.NewClient(conn, host)
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+
+		if err := client.Auth(auth); err != nil {
+			return err
+		}
+		if err := client.Mail(user); err != nil {
+			return err
+		}
+		if err := client.Rcpt(toEmail); err != nil {
+			return err
+		}
+		w, err := client.Data()
+		if err != nil {
+			return err
+		}
+		_, err = w.Write(msg)
+		if err != nil {
+			return err
+		}
+		return w.Close()
+	}
+
 	return smtp.SendMail(addr, auth, user, []string{toEmail}, msg)
 }
