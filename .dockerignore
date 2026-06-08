@@ -1,0 +1,35 @@
+# Git
+.git
+.gitignore
+
+# Frontend dependencies and build artifacts
+frontend/node_modules/
+frontend/dist/
+frontend/src-tauri/target/
+frontend/src-tauri/binaries/
+
+# Backend artifacts
+backend-go/server
+backend-go/server.exe
+backend-go/tools/
+
+# Data & logs
+data/
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Environment files (only .env.enc should be included)
+.env
+.env.local
+.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation
+*.md

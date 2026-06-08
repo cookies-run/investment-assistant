@@ -83,12 +83,16 @@ func main() {
 	// In standalone mode, serve frontend static files.
 	// In Tauri sidecar mode, Tauri WebView loads its own frontend; skip static file serving.
 	if os.Getenv("TAURI_SIDEARCAR") != "1" {
-		r.Static("/assets", "../frontend/dist/assets")
+		frontendDist := os.Getenv("FRONTEND_DIST")
+		if frontendDist == "" {
+			frontendDist = "../frontend/dist"
+		}
+		r.Static("/assets", frontendDist+"/assets")
 		r.GET("/", func(c *gin.Context) {
-			c.File("../frontend/dist/index.html")
+			c.File(frontendDist + "/index.html")
 		})
 		r.NoRoute(func(c *gin.Context) {
-			c.File("../frontend/dist/index.html")
+			c.File(frontendDist + "/index.html")
 		})
 	}
 
