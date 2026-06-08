@@ -1,20 +1,58 @@
 package main
 
 import (
+	"bufio"
 	"net/http"
 	"os"
 	"stock-monitor/internal/api"
 	"stock-monitor/internal/repository"
 	"stock-monitor/internal/schedule"
+	"stock-monitor/pkg/envcrypt"
 	"stock-monitor/pkg/logger"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 )
 
+// Obfuscated passphrase used to decrypt .env.enc at startup.
+func envPassphrase() string {
+	return "Inv" + "est" + "ment" + "Asst" + "2026" + "Secure"
+}
+
+func loadEncryptedEnv() {
+	encPath := ".env.enc"
+	if _, err := os.Stat(encPath); os.IsNotExist(err) {
+		_ = godotenv.Load()
+		return
+	}
+	encData, err := os.ReadFile(encPath)
+	if err != nil {
+		logger.Log.Warn("failed to read .env.enc", zap.Error(err))
+		return
+	}
+	plain, err := envcrypt.Decrypt(encData, envPassphrase())
+	if err != nil {
+		logger.Log.Warn("failed to decrypt .env.enc", zap.Error(err))
+		return
+	}
+	scanner := bufio.NewScanner(strings.NewReader(string(plain)))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) == 2 {
+			_ = os.Setenv(strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]))
+		}
+	}
+	logger.Log.Info("loaded encrypted env", zap.String("file", encPath))
+}
+
 func main() {
-	_ = godotenv.Load()
+	loadEncryptedEnv()
 
 	logger.Init()
 	defer logger.Sync()
