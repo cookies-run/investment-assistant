@@ -8,6 +8,7 @@ RUN npm run build
 
 # Stage 2: Build backend
 FROM golang:1.26-alpine AS backend-builder
+RUN apk add --no-cache build-base
 ENV GOPROXY=https://goproxy.cn,direct
 WORKDIR /app
 COPY backend-go/go.mod backend-go/go.sum ./
